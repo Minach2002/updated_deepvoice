@@ -22,7 +22,9 @@ class CustomScaffold extends StatelessWidget {
               ),
               )
               : null,
+              
       extendBodyBehindAppBar: true,
+      
       body: Stack(
         children: [
           Image.asset(

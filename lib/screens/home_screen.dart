@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:real_project/widgets/custom_scaffold.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,79 +14,82 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final AudioRecorder _audioRecorder = AudioRecorder(); // Use the correct factory constructor
-
-  bool isRecording = false; 
-  String? _filePath;
-
-  Future<void> _startRecording() async {
-    try {
-      if (await _audioRecorder.hasPermission()) {
-        final directory = await getApplicationDocumentsDirectory();
-        final filePath = '${directory.path}/audio_record.m4a';
-
-        await _audioRecorder.start(const RecordConfig(), path: filePath); // Use RecordConfig
-        setState(() {
-          isRecording = true;
-          _filePath = filePath;
-        });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Microphone permission denied')),
-        );
-      }
-    } catch (e) {
-      print('Error starting recording: $e');
-    }
-  }
-
-  Future<void> _stopRecording() async {
-    try {
-      if (isRecording) {
-        final path = await _audioRecorder.stop();
-        setState(() {
-          isRecording = false;
-          _filePath = path;
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Recording saved at $_filePath')),
-        );
-      }
-    } catch (e) {
-      print('Error stopping recording: $e');
-    }
-  }
+  final AudioRecorder audioRecorder = AudioRecorder();
+  final AudioPlayer audioPlayer = AudioPlayer();
+  String? recordingPath;
+  bool isRecording = false, isPlaying = false;
 
   @override
   Widget build(BuildContext context) {
-    return CustomScaffold(
-      showAppBar: true,
-      child: Stack(
+    return Scaffold(
+      floatingActionButton: _recordingButton(),
+      body: _buildUI(),
+    );
+  }
+
+  Widget _buildUI() {
+    return SizedBox(
+      width: MediaQuery.sizeOf(context).width,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Column(
-            children: [
-              Expanded(
-                flex: 7,
-                child: Center(
-                  child: Text(
-                    'Welcome to the Home Screen!',
-                    style: TextStyle(color: Colors.white),
-                  ),
+          if (recordingPath != null)
+            MaterialButton(
+              onPressed: () async {
+                if (audioPlayer.state == PlayerState.playing) {
+                  // Stop the audio if it's playing
+                  await audioPlayer.stop();
+                  setState(() {
+                    isPlaying = false;
+                  });
+                } else {
+                  // Play the audio if it's not playing
+                  await audioPlayer.play(DeviceFileSource(recordingPath!));
+                  setState(() {
+                    isPlaying = true;
+                  });
+                }
+              },
+              color: Theme.of(context).colorScheme.primary,
+              child: Text(
+                isPlaying ? "Stop Playing Recording" : "Start Playing Recording",
+                style: const TextStyle(
+                  color: Colors.white,
                 ),
               ),
-            ],
-          ),
-          Positioned(
-            left: MediaQuery.of(context).size.width / 2 - 28,
-            bottom: MediaQuery.of(context).size.height / 4,
-            child: FloatingActionButton(
-              onPressed: isRecording ? _stopRecording : _startRecording,
-              backgroundColor: isRecording ? Colors.red : Colors.blue,
-              child: Icon(isRecording ? Icons.stop : Icons.mic),
             ),
-          ),
+          if (recordingPath == null) const Text('No Recording Found :(')
         ],
+      ),
+    );
+  }
+
+  Widget _recordingButton() {
+    return FloatingActionButton(
+      onPressed: () async {
+        if (isRecording) {
+          String? filePath = await audioRecorder.stop();
+          if (filePath != null) {
+            setState(() {
+              isRecording = false;
+              recordingPath = filePath;
+            });
+          }
+        } else {
+          if (await audioRecorder.hasPermission()) {
+            final Directory appDocumentsDir = await getApplicationDocumentsDirectory();
+            final String filePath = p.join(appDocumentsDir.path, "recording.wav");
+            await audioRecorder.start(const RecordConfig(), path: filePath);
+            setState(() {
+              isRecording = true;
+              recordingPath = null;
+            });
+          }
+        }
+      },
+      child: Icon(
+        isRecording ? Icons.stop : Icons.mic,
       ),
     );
   }

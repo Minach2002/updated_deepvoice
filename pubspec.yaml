@@ -42,9 +42,11 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  record: ^5.0.4  # For recording audio
+  record: ^5.2.1
+  just_audio: ^0.9.46 
+  path: ^1.9.1
   path_provider: ^2.1.2
-  audioplayers: ^0.20.1
+  audioplayers: ^6.4.0
 
 
   # The "flutter_lints" package below contains a set of recommended lints to
