@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
-import 'package:real_project/widgets/custom_scaffold.dart';
+import 'package:http/http.dart' as http;
 import 'package:audioplayers/audioplayers.dart';
+import 'package:http_parser/http_parser.dart'; // For MediaType
+import 'dart:convert'; // For json.decode
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +20,55 @@ class _HomeScreenState extends State<HomeScreen> {
   final AudioPlayer audioPlayer = AudioPlayer();
   String? recordingPath;
   bool isRecording = false, isPlaying = false;
+  String? predictedEmotion; // To store the predicted emotion
+
+  // Function to send the audio file to the Flask server
+  Future<void> _sendAudioToServer(String filePath) async {
+    print('Sending audio file to server: $filePath'); // Debug log
+
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse('https://4e2e-34-126-85-40.ngrok-free.app/predict'), // Use your ngrok URL
+    );
+
+    // Attach the audio file
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'file', // Field name (must match the Flask server's expected field)
+        filePath, // Path to the audio file
+        contentType: MediaType('audio', 'wav'), // Set the content type
+      ),
+    );
+
+    // Send the request
+    try {
+      var response = await request.send();
+      print('Response status code: ${response.statusCode}'); // Debug log
+
+      if (response.statusCode == 200) {
+        // Read the response
+        var responseData = await response.stream.bytesToString();
+        print('Server response: $responseData'); // Debug log
+
+        // Parse the JSON response
+        var jsonResponse = json.decode(responseData);
+        setState(() {
+          predictedEmotion = jsonResponse['emotion']; // Update the predicted emotion
+        });
+      } else {
+        // Handle errors
+        setState(() {
+          predictedEmotion = 'Error: ${response.statusCode}';
+        });
+      }
+    } catch (e) {
+      // Handle exceptions
+      print('Error sending request: $e'); // Debug log
+      setState(() {
+        predictedEmotion = 'Error: $e';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,7 +110,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-          if (recordingPath == null) const Text('No Recording Found :(')
+          if (recordingPath == null) const Text('No Recording Found :('),
+          if (predictedEmotion != null) // Display the predicted emotion
+            Padding(
+              padding: const EdgeInsets.only(top: 20),
+              child: Text(
+                'Predicted Emotion: $predictedEmotion',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -69,14 +131,19 @@ class _HomeScreenState extends State<HomeScreen> {
     return FloatingActionButton(
       onPressed: () async {
         if (isRecording) {
+          // Stop recording
           String? filePath = await audioRecorder.stop();
           if (filePath != null) {
             setState(() {
               isRecording = false;
               recordingPath = filePath;
             });
+
+            // Send the audio file to the server
+            await _sendAudioToServer(filePath);
           }
         } else {
+          // Start recording
           if (await audioRecorder.hasPermission()) {
             final Directory appDocumentsDir = await getApplicationDocumentsDirectory();
             final String filePath = p.join(appDocumentsDir.path, "recording.wav");
