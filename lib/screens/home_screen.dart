@@ -5,6 +5,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:http_parser/http_parser.dart';
 import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
+import 'package:real_project/screens/games/game.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -26,6 +27,21 @@ class _HomeScreenState extends State<HomeScreen> {
   String _currentTip = '';
   String _apiError = '';
 
+  final List<String> _questions = [
+    "How are you feeling today?",
+    "Tell me about your day.",
+    "What made you happy recently?",
+    "Is there anything that's bothering you?",
+    "What's on your mind right now?",
+  ];
+  String _currentQuestion = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _currentQuestion = _questions[0]; // Initialize with first question
+  }
+
   Future<void> _analyzeAudio() async {
     if (_recordingPath == null) return;
 
@@ -38,7 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('https://9086-34-106-10-62.ngrok-free.app/predict'), // Added /predict endpoint
+        Uri.parse('https://40fe-34-106-147-169.ngrok-free.app/predict'),
       );
 
       request.files.add(await http.MultipartFile.fromPath(
@@ -54,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (jsonResponse['success'] == true) {
         setState(() {
           _detectedEmotion = jsonResponse['emotion'];
-          _confidence = '${(double.parse(jsonResponse['confidence']) * 100).toStringAsFixed(1)}% confidence'; // Fixed decimal places
+          _confidence = '${(double.parse(jsonResponse['confidence']) * 100).toStringAsFixed(1)}% confidence';
           _currentTip = jsonResponse['tip'];
           _currentStatus = 'Analysis complete';
         });
@@ -87,6 +103,9 @@ class _HomeScreenState extends State<HomeScreen> {
         final tempDir = await getTemporaryDirectory();
         final filePath = '${tempDir.path}/recording_${DateTime.now().millisecondsSinceEpoch}.wav';
         
+        // Get a new random question before starting recording
+        final randomQuestion = (_questions..shuffle()).first;
+
         await _audioRecorder.start(
           RecordConfig(encoder: AudioEncoder.wav, sampleRate: 16000),
           path: filePath,
@@ -100,6 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _currentTip = '';
           _apiError = '';
           _currentStatus = 'Recording... Speak now!';
+          _currentQuestion = randomQuestion;
         });
       }
     }
@@ -130,60 +150,118 @@ class _HomeScreenState extends State<HomeScreen> {
         centerTitle: true,
         elevation: 0,
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Status Indicator
-              Text(
-                _currentStatus,
-                style: TextStyle(
-                  fontSize: 18,
-                  color: _isRecording ? Colors.red : Colors.grey[700],
-                ),
-              ),
-              const SizedBox(height: 20),
+      body: Stack(
+        children: [
+          // Main content
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Question Display (only when not recording and no results)
+                  if (!_isRecording && _detectedEmotion.isEmpty)
+                    Column(
+                      children: [
+                        Text(
+                          'Try answering this:',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 15,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.blue[50],
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            _currentQuestion,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
 
-              // Recording/Playback Visual
-              if (_isRecording)
-                const Icon(Icons.mic, size: 80, color: Colors.red)
-              else if (_recordingPath != null)
-                IconButton(
-                  icon: Icon(
-                    _isPlaying ? Icons.stop : Icons.play_arrow,
-                    size: 60,
-                    color: Colors.blue,
+                  // Status Indicator
+                  Text(
+                    _currentStatus,
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: _isRecording ? Colors.red : Colors.grey[700],
+                    ),
                   ),
-                  onPressed: _togglePlayback,
-                )
-              else
-                const Icon(Icons.mic_none, size: 80, color: Colors.grey),
+                  const SizedBox(height: 20),
 
-              const SizedBox(height: 30),
+                  // Recording/Playback Visual
+                  if (_isRecording)
+                    const Icon(Icons.mic, size: 80, color: Colors.red)
+                  else if (_recordingPath != null)
+                    IconButton(
+                      icon: Icon(
+                        _isPlaying ? Icons.stop : Icons.play_arrow,
+                        size: 60,
+                        color: Colors.blue,
+                      ),
+                      onPressed: _togglePlayback,
+                    )
+                  else
+                    const Icon(Icons.mic_none, size: 80, color: Colors.grey),
 
-              // Loading Indicator
-              if (_isLoading)
-                const Column(
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 10),
-                    Text('Processing...'),
-                  ],
-                ),
+                  const SizedBox(height: 30),
 
-              // Results Display
-              if (_detectedEmotion.isNotEmpty)
-                _buildResultCard(),
+                  // Loading Indicator
+                  if (_isLoading)
+                    const Column(
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 10),
+                        Text('Processing...'),
+                      ],
+                    ),
 
-              // Error Display
-              if (_apiError.isNotEmpty)
-                _buildErrorCard(),
-            ],
+                  // Results Display
+                  if (_detectedEmotion.isNotEmpty)
+                    _buildResultCard(),
+
+                  // Error Display
+                  if (_apiError.isNotEmpty)
+                    _buildErrorCard(),
+                ],
+              ),
+            ),
           ),
-        ),
+
+          // 🎮 Game Icon at Bottom Left
+          Positioned(
+            bottom: 20,
+            right: 20,
+            child: FloatingActionButton(
+              heroTag: 'game_btn',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => GamesPage()),
+                );
+              },
+              backgroundColor: Colors.green,
+              child: const Icon(Icons.videogame_asset),
+            ),
+          ),
+        ],
       ),
+      
       floatingActionButton: FloatingActionButton(
         onPressed: _toggleRecording,
         child: Icon(_isRecording ? Icons.stop : Icons.mic),
