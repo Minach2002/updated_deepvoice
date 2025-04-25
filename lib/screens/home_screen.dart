@@ -6,6 +6,7 @@ import 'package:http_parser/http_parser.dart';
 import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 import 'package:real_project/screens/games/game.dart';
+import 'package:real_project/screens/bottom_navbar.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -26,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _confidence = '';
   String _currentTip = '';
   String _apiError = '';
+  int _currentIndex = 0; // For bottom navigation bar
 
   final List<String> _questions = [
     "How are you feeling today?",
@@ -132,6 +134,24 @@ class _HomeScreenState extends State<HomeScreen> {
     } else if (_recordingPath != null) {
       await _audioPlayer.play(DeviceFileSource(_recordingPath!));
       setState(() => _isPlaying = true);
+    }
+  }
+
+  // Handle bottom navigation bar taps
+  void _onItemTapped(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+    
+    // Add navigation logic here
+    switch (index) {
+      case 1: // Games
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => GamesPage()),
+        );
+        break;
+      // Add cases for other tabs as needed
     }
   }
 
@@ -242,23 +262,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-
-          // 🎮 Game Icon at Bottom Left
-          Positioned(
-            bottom: 20,
-            right: 20,
-            child: FloatingActionButton(
-              heroTag: 'game_btn',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => GamesPage()),
-                );
-              },
-              backgroundColor: Colors.green,
-              child: const Icon(Icons.videogame_asset),
-            ),
-          ),
         ],
       ),
       
@@ -268,6 +271,12 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: _isRecording ? Colors.red : Colors.blue,
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+      
+      // Bottom Navigation Bar
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: _currentIndex,
+        onTap: _onItemTapped,
+      ),
     );
   }
 
