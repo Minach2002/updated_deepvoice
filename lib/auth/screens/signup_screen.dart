@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -14,31 +13,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   String _selectedRole = 'user'; // Default role
-  final List<String> _roles = ['user', 'admin', 'therapist'];
 
-  Future save() async {
-  // Change this line:
-  var res = await http.post(
-    Uri.parse("http://localhost:8080/signup"), // Changed from localhost
-    headers: <String, String>{
-      'Context-Type': 'application/json;charSet=UTF-8'
-    },
-    body: <String, String>{
-      'name': _nameController.text,
-      'email': _emailController.text,
-      'password': _passwordController.text,
-      'role': _selectedRole,
-    },
-  );
-    
-    if (res.statusCode == 200) {
-      Navigator.pop(context); // Return to login screen after successful signup
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Signup failed: ${res.body}'))
-      );
-    }
-  }
+  final List<String> _roles = ['user', 'admin', 'therapist'];
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +33,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Name',
                   hintText: 'Enter your name',
-                  border: OutlineInputBorder(),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -72,15 +47,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Email',
                   hintText: 'Enter your email',
-                  border: OutlineInputBorder(),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter Email';
-                  } else if (!RegExp(
-                    r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+")
-                    .hasMatch(value)) {
-                    return 'Enter valid email';
+                  if (value == null || value.isEmpty || !value.contains('@')) {
+                    return 'Please enter a valid email';
                   }
                   return null;
                 },
@@ -92,12 +62,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 decoration: const InputDecoration(
                   labelText: 'Password',
                   hintText: 'Enter your password',
-                  border: OutlineInputBorder(),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter Password';
-                  } else if (value.length < 6) {
+                  if (value == null || value.isEmpty || value.length < 6) {
                     return 'Password must be at least 6 characters';
                   }
                   return null;
@@ -108,12 +75,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 value: _selectedRole,
                 decoration: const InputDecoration(
                   labelText: 'Role',
-                  border: OutlineInputBorder(),
                 ),
                 items: _roles.map((role) {
                   return DropdownMenuItem(
                     value: role,
-                    child: Text(role[0].toUpperCase() + role.substring(1)), // Capitalize role name
+                    child: Text(role),
                   );
                 }).toList(),
                 onChanged: (value) {
@@ -121,29 +87,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     _selectedRole = value!;
                   });
                 },
-                validator: (value) {
-                  if (value == null) {
-                    return 'Please select a role';
-                  }
-                  return null;
-                },
               ),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
-                    save();
+                    // Handle signup logic here
+                    print('Name: ${_nameController.text}');
+                    print('Email: ${_emailController.text}');
+                    print('Password: ${_passwordController.text}');
+                    print('Role: $_selectedRole');
                   }
                 },
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50),
-                ),
                 child: const Text('Sign Up'),
               ),
               const SizedBox(height: 10),
               TextButton(
                 onPressed: () {
-                  Navigator.pop(context);
+                  Navigator.pop(context); // Go back to the login screen
                 },
                 child: const Text('Already have an account? Login'),
               ),

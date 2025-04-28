@@ -49,7 +49,7 @@ class WelcomeScreen extends StatelessWidget {
               alignment: Alignment.bottomRight,
               child: Row(
                 children: [
-                  Expanded(
+                 const Expanded(
                     child: WelcomeButton(
                       buttonText: 'Sign in',
                       onTap:SignInScreen() ,
